@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { loadFeatureFlags } from "../../data/FeatureFlagRepository.js";
 import * as Repo from "../../data/AdminRepository.js";
+import { loadFeatureFlags } from "../../data/FeatureFlagRepository.js";
 
 function friendlyError(code) {
   const map = {
@@ -89,7 +89,12 @@ export function useAdminViewModel() {
     };
 
     const unsubOrders = Repo.syncOrders((orders) => {
-      setAllOrders(orders);
+      const sorted = [...orders].sort((a, b) => {
+        const da = `${a.date || ""}T${a.time || ""}`;
+        const db = `${b.date || ""}T${b.time || ""}`;
+        return db.localeCompare(da);
+      });
+      setAllOrders(sorted);
       loaded.orders = true;
       checkLoaded();
     });
