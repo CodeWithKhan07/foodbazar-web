@@ -1,9 +1,14 @@
-import { onValue, push, ref, set, update } from "firebase/database";
-import { database } from "../../firebase.js";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "../../firebase.js";
 
-const DB_ROOT = "foodbazar";
-const CUSTOMER_ORDERS_PATH = `${DB_ROOT}/customerOrders`;
 const CUSTOMER_SESSION_KEY = "foodbazar_customer_session";
+const customerOrdersCol = collection(db, "customerOrders");
 
 export const CUSTOMER_ORDER_STATUS = {
   pending: "pending",
@@ -35,31 +40,33 @@ export const getCustomerSessionId = () => {
 };
 
 export const syncCustomerOrders = (onLoaded) => {
-  const customerOrdersRef = ref(database, CUSTOMER_ORDERS_PATH);
-  return onValue(customerOrdersRef, (snapshot) => {
-    onLoaded(normalizeOrders(snapshot.val()));
+  return onSnapshot(customerOrdersCol, (snapshot) => {
+    const orders = snapshot.docs.map((entry) => ({
+      id: entry.id,
+      ...entry.data(),
+    }));
+    onLoaded(normalizeOrders(orders));
   });
 };
 
 export const submitCustomerOrder = async (order) => {
-  const customerOrdersRef = ref(database, CUSTOMER_ORDERS_PATH);
-  const nextOrderRef = push(customerOrdersRef);
   const now = Date.now();
+  const nextOrderRef = doc(customerOrdersCol);
   const payload = {
     ...order,
-    id: nextOrderRef.key,
+    id: nextOrderRef.id,
     createdAt: order.createdAt ?? now,
     updatedAt: now,
   };
 
-  await set(nextOrderRef, payload);
+  await setDoc(nextOrderRef, payload);
   return payload;
 };
 
 export const updateCustomerOrder = async (orderId, updates) => {
   if (!orderId) return;
 
-  await update(ref(database, `${CUSTOMER_ORDERS_PATH}/${orderId}`), {
+  await updateDoc(doc(customerOrdersCol, orderId), {
     ...updates,
     updatedAt: Date.now(),
   });
